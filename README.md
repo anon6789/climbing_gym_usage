@@ -104,7 +104,7 @@ def load_guests(day):
 
 
 ```python
-load_guests('20210816')[:10] # it works!
+load_guests('20210816')[:5] # it works!
 ```
 
 
@@ -114,12 +114,7 @@ load_guests('20210816')[:10] # it works!
      {'timestamp': 1629119702, 'visitors': 21, 'waiting': 0, 'free': 39},
      {'timestamp': 1629117001, 'visitors': 21, 'waiting': 0, 'free': 39},
      {'timestamp': 1629101703, 'visitors': 6, 'waiting': 0, 'free': 54},
-     {'timestamp': 1629111602, 'visitors': 17, 'waiting': 0, 'free': 43},
-     {'timestamp': 1629126902, 'visitors': 43, 'waiting': 0, 'free': 17},
-     {'timestamp': 1629135903, 'visitors': 38, 'waiting': 0, 'free': 22},
-     {'timestamp': 1629134102, 'visitors': 47, 'waiting': 0, 'free': 13},
-     {'timestamp': 1629129602, 'visitors': 52, 'waiting': 0, 'free': 8},
-     {'timestamp': 1629131402, 'visitors': 50, 'waiting': 0, 'free': 10}]
+     {'timestamp': 1629111602, 'visitors': 17, 'waiting': 0, 'free': 43}]
 
 
 
@@ -147,11 +142,12 @@ def prepare_data(guests):
     
     guests_map_sorted = sorted(guests_map.items()) # sort timestamps by key (key = timestamp)
     
-    timestamps = []
-    visitors = []
-    waiting = []
-    free = []
-    days = []
+    timestamps = [] # timestamps used for plot of single plot
+    visitors = []   # visitors in glimbing gym
+    waiting = []    # waiting visitors
+    free = []       # free slots (max capacity - visitors)
+    dates = []      # day in the format YYYYMMDD used for index in heatmap
+    days = []       # day of the week used for index in heatmap
     
     # loop over all guests and fill arrays with values
     for timestamp,guest in guests_map_sorted:
@@ -159,13 +155,14 @@ def prepare_data(guests):
         visitors.append(guests_map[timestamp]['visitors'])
         waiting.append(guests_map[timestamp]['waiting'])
         free.append(guests_map[timestamp]['free'])
-        days.append(dt.datetime.fromtimestamp(timestamp).strftime("%Y%m%d - %a")) # this is the  index for every day we use for the heatmap and for the y axis labels
+        dates.append(dt.datetime.fromtimestamp(timestamp).strftime("%Y%m%d"))
+        days.append(dt.datetime.fromtimestamp(timestamp).strftime("%a"))
         
     dateconv = np.vectorize(dt.datetime.fromtimestamp)
-    dates = dateconv(timestamps)
-    time_of_day = extract_time(dates)
+    timestamps = dateconv(timestamps)
+    time_of_day = extract_time(timestamps)
     
-    return visitors, waiting, free, dates, time_of_day, days
+    return visitors, waiting, free, timestamps, time_of_day, dates, days
 ```
 
 So lets prepare the data of one single day:
@@ -173,7 +170,7 @@ So lets prepare the data of one single day:
 
 ```python
 guests = load_guests('20210816')
-visitors, waiting, free, dates, time_of_day, days = prepare_data(guests)
+visitors, waiting, free, timestamps, time_of_day, dates, days = prepare_data(guests)
 ```
 
 And plot the data for a single day:
@@ -182,9 +179,9 @@ And plot the data for a single day:
 ```python
 fig = plt.figure(figsize=(15,4))
 ax1 = plt.subplot2grid((1,1), (0,0))
-plt.plot_date(dates, visitors,'b-', label='visitors')
-plt.plot_date(dates, free,'g-', label='free')
-plt.plot_date(dates, waiting,'r-', label='waiting')
+plt.plot_date(timestamps, visitors,'b-', label='visitors')
+plt.plot_date(timestamps, free,'g-', label='free')
+plt.plot_date(timestamps, waiting,'r-', label='waiting')
 for label in ax1.xaxis.get_ticklabels():
     label.set_rotation(45)
 ax1.grid(True)
@@ -215,43 +212,38 @@ for folder in os.listdir("./data/"):
 
 
 ```python
-all_guests[:10]
+all_guests[:5]
 ```
 
 
 
 
-    [{'timestamp': 1629967501, 'visitors': 14, 'waiting': 0, 'free': 46},
-     {'timestamp': 1629988201, 'visitors': 22, 'waiting': 0, 'free': 38},
-     {'timestamp': 1630002601, 'visitors': 23, 'waiting': 0, 'free': 37},
-     {'timestamp': 1630008002, 'visitors': 0, 'waiting': 0, 'free': 60},
-     {'timestamp': 1629998102, 'visitors': 47, 'waiting': 0, 'free': 13},
-     {'timestamp': 1630005302, 'visitors': 10, 'waiting': 0, 'free': 50},
-     {'timestamp': 1629979201, 'visitors': 13, 'waiting': 0, 'free': 47},
-     {'timestamp': 1629997201, 'visitors': 51, 'waiting': 0, 'free': 9},
-     {'timestamp': 1629987303, 'visitors': 20, 'waiting': 0, 'free': 40},
-     {'timestamp': 1629990001, 'visitors': 26, 'waiting': 0, 'free': 34}]
+    [{'timestamp': 1631288701, 'visitors': 55, 'waiting': 5, 'free': 5},
+     {'timestamp': 1631286003, 'visitors': 59, 'waiting': 0, 'free': 1},
+     {'timestamp': 1631282402, 'visitors': 55, 'waiting': 0, 'free': 5},
+     {'timestamp': 1631273402, 'visitors': 18, 'waiting': 0, 'free': 42},
+     {'timestamp': 1631302201, 'visitors': 26, 'waiting': 0, 'free': 34}]
 
 
 
-We are using the same function `prepare_data` again to prepare the data for plotting. This time we don't care about the ordering and some other fealds, because `pandas` handles this quite well. So the function could skip the sorting. But its easier to just reuse the existing code.
+We are using the same function `prepare_data` again to prepare the data for plotting. This time we don't care about the ordering and some other fields, because `pandas` handles this quite well. So the function could skip the sorting. But its easier to just reuse the existing code.
 
 
 ```python
-visitors, waiting, free, dates, time_of_day, days = prepare_data(all_guests)
+visitors, waiting, free, timestamps, time_of_day, dates, days = prepare_data(all_guests)
 ```
 
 Next we load the data to `pandas`. We drop the columns `dates`, `free` and `waiting` because we don't need them for the first heatmap. Later I may also use this data as well:
 
 
 ```python
-d = {'visitors': visitors, 'time_of_day': time_of_day, 'days': days }
+d = {'visitors': visitors, 'time_of_day': time_of_day, 'dates': dates, 'days': days }
 df = pd.DataFrame(data=d)
 ```
 
 
 ```python
-df
+df[:5]
 ```
 
 
@@ -277,6 +269,7 @@ df
       <th></th>
       <th>visitors</th>
       <th>time_of_day</th>
+      <th>dates</th>
       <th>days</th>
     </tr>
   </thead>
@@ -285,80 +278,291 @@ df
       <th>0</th>
       <td>37</td>
       <td>14:15</td>
-      <td>20210808 - Sun</td>
+      <td>20210808</td>
+      <td>Sun</td>
     </tr>
     <tr>
       <th>1</th>
       <td>39</td>
       <td>14:30</td>
-      <td>20210808 - Sun</td>
+      <td>20210808</td>
+      <td>Sun</td>
     </tr>
     <tr>
       <th>2</th>
       <td>39</td>
       <td>14:45</td>
-      <td>20210808 - Sun</td>
+      <td>20210808</td>
+      <td>Sun</td>
     </tr>
     <tr>
       <th>3</th>
       <td>36</td>
       <td>15:00</td>
-      <td>20210808 - Sun</td>
+      <td>20210808</td>
+      <td>Sun</td>
     </tr>
     <tr>
       <th>4</th>
       <td>39</td>
       <td>15:15</td>
-      <td>20210808 - Sun</td>
-    </tr>
-    <tr>
-      <th>...</th>
-      <td>...</td>
-      <td>...</td>
-      <td>...</td>
-    </tr>
-    <tr>
-      <th>1370</th>
-      <td>27</td>
-      <td>21:00</td>
-      <td>20210906 - Mon</td>
-    </tr>
-    <tr>
-      <th>1371</th>
-      <td>29</td>
-      <td>21:15</td>
-      <td>20210906 - Mon</td>
-    </tr>
-    <tr>
-      <th>1372</th>
-      <td>29</td>
-      <td>21:30</td>
-      <td>20210906 - Mon</td>
-    </tr>
-    <tr>
-      <th>1373</th>
-      <td>23</td>
-      <td>21:45</td>
-      <td>20210906 - Mon</td>
-    </tr>
-    <tr>
-      <th>1374</th>
-      <td>22</td>
-      <td>22:00</td>
-      <td>20210906 - Mon</td>
+      <td>20210808</td>
+      <td>Sun</td>
     </tr>
   </tbody>
 </table>
-<p>1375 rows × 3 columns</p>
 </div>
 
 
 
-Next we have to pivot the data frame for easier plotting in a heatmap. We want to have data for each day as a row (`days` column) and use the other columns for the time of day (`time_of_day` column which merges HH:MM into a string).
+Now we merge the two columns `dates` and `days` to a new column `dates_day`. This helps to read the y-axis in the heatmap better and compare diffrent weekdays.
 
 
 ```python
-df_pivot = df.pivot(index='days', columns='time_of_day', values='visitors')
+df["dates_days"] = df.dates + " " + df.days
+```
+
+Next we have to pivot the data frame for easier plotting in a heatmap. We want to have data for each day as a row (`dates_days` column) and use the other columns for the time of day (`time_of_day` column which merges HH:MM into a string).
+
+
+```python
+df_pivot = df.pivot(index='dates_days', columns='time_of_day', values='visitors')
+```
+
+
+```python
+df_pivot[:5]
+```
+
+
+
+
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>time_of_day</th>
+      <th>10:00</th>
+      <th>10:15</th>
+      <th>10:30</th>
+      <th>10:45</th>
+      <th>11:00</th>
+      <th>11:15</th>
+      <th>11:30</th>
+      <th>11:45</th>
+      <th>12:00</th>
+      <th>12:15</th>
+      <th>...</th>
+      <th>19:45</th>
+      <th>20:00</th>
+      <th>20:15</th>
+      <th>20:30</th>
+      <th>20:45</th>
+      <th>21:00</th>
+      <th>21:15</th>
+      <th>21:30</th>
+      <th>21:45</th>
+      <th>22:00</th>
+    </tr>
+    <tr>
+      <th>dates_days</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>20210808 Sun</th>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>...</td>
+      <td>27.0</td>
+      <td>28.0</td>
+      <td>27.0</td>
+      <td>14.0</td>
+      <td>14.0</td>
+      <td>10.0</td>
+      <td>9.0</td>
+      <td>9.0</td>
+      <td>9.0</td>
+      <td>0.0</td>
+    </tr>
+    <tr>
+      <th>20210809 Mon</th>
+      <td>5.0</td>
+      <td>11.0</td>
+      <td>15.0</td>
+      <td>19.0</td>
+      <td>19.0</td>
+      <td>20.0</td>
+      <td>23.0</td>
+      <td>24.0</td>
+      <td>28.0</td>
+      <td>30.0</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>28.0</td>
+      <td>24.0</td>
+      <td>22.0</td>
+    </tr>
+    <tr>
+      <th>20210810 Tue</th>
+      <td>0.0</td>
+      <td>6.0</td>
+      <td>9.0</td>
+      <td>18.0</td>
+      <td>24.0</td>
+      <td>28.0</td>
+      <td>34.0</td>
+      <td>34.0</td>
+      <td>33.0</td>
+      <td>29.0</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>50.0</td>
+      <td>44.0</td>
+      <td>38.0</td>
+      <td>31.0</td>
+      <td>25.0</td>
+      <td>25.0</td>
+      <td>22.0</td>
+    </tr>
+    <tr>
+      <th>20210811 Wed</th>
+      <td>22.0</td>
+      <td>7.0</td>
+      <td>11.0</td>
+      <td>12.0</td>
+      <td>15.0</td>
+      <td>17.0</td>
+      <td>18.0</td>
+      <td>18.0</td>
+      <td>21.0</td>
+      <td>25.0</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+    </tr>
+    <tr>
+      <th>20210812 Thu</th>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>12.0</td>
+      <td>12.0</td>
+      <td>13.0</td>
+      <td>...</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>34.0</td>
+      <td>29.0</td>
+      <td>11.0</td>
+      <td>11.0</td>
+      <td>11.0</td>
+      <td>11.0</td>
+    </tr>
+  </tbody>
+</table>
+<p>5 rows × 49 columns</p>
+</div>
+
+
+
+Due to missing error handling and testing some data is missing (`NaN`). We just fill the missing data with the maximum capacity for now. Most of the missing data comes from errors in the scraper code. The code failed when the visitor capacity was at maximum and some expected `int` values were `-` strings.
+
+
+```python
+df_pivot.loc[:] =  np.nan_to_num(df_pivot, nan=60)
+```
+
+Now we can plot the heatmap:
+
+
+```python
+fig = plt.figure(figsize=(25,20))
+sns.set(font_scale=2)
+heatmap = sns.heatmap(df_pivot, cmap=sns.color_palette("RdYlGn_r"), cbar_kws={'label': 'visitors'}, vmin=0, vmax=60)
+heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation=69) 
+plt.xlabel('Time of day')
+plt.ylabel('Day')
+plt.title('Climbing gym visitors per day')
+plt.show()
+
+```
+
+
+    
+![png](output_30_0.png)
+    
+
+
+It would be also interesting to know the average usage over the course of a week. To calculate this average usage we pivot the data similar to the first pivot. But this time we use `days` column as the index. We also tell pandas to aggregate all similar rows (meaning similar days) using the `np.mean` function.
+
+
+```python
+df_pivot = df.pivot_table(index='days', columns='time_of_day', values='visitors', aggfunc = { 'visitors': np.mean })
 ```
 
 
@@ -436,761 +640,202 @@ df_pivot
   </thead>
   <tbody>
     <tr>
-      <th>20210808 - Sun</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>...</td>
-      <td>27.0</td>
-      <td>28.0</td>
-      <td>27.0</td>
-      <td>14.0</td>
-      <td>14.0</td>
-      <td>10.0</td>
-      <td>9.0</td>
-      <td>9.0</td>
-      <td>9.0</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>20210809 - Mon</th>
-      <td>5.0</td>
-      <td>11.0</td>
-      <td>15.0</td>
-      <td>19.0</td>
-      <td>19.0</td>
-      <td>20.0</td>
-      <td>23.0</td>
-      <td>24.0</td>
-      <td>28.0</td>
-      <td>30.0</td>
-      <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>28.0</td>
-      <td>24.0</td>
-      <td>22.0</td>
-    </tr>
-    <tr>
-      <th>20210810 - Tue</th>
-      <td>0.0</td>
-      <td>6.0</td>
-      <td>9.0</td>
-      <td>18.0</td>
-      <td>24.0</td>
-      <td>28.0</td>
-      <td>34.0</td>
-      <td>34.0</td>
-      <td>33.0</td>
-      <td>29.0</td>
-      <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>50.0</td>
-      <td>44.0</td>
-      <td>38.0</td>
-      <td>31.0</td>
-      <td>25.0</td>
-      <td>25.0</td>
-      <td>22.0</td>
-    </tr>
-    <tr>
-      <th>20210811 - Wed</th>
-      <td>22.0</td>
-      <td>7.0</td>
-      <td>11.0</td>
-      <td>12.0</td>
-      <td>15.0</td>
-      <td>17.0</td>
-      <td>18.0</td>
-      <td>18.0</td>
-      <td>21.0</td>
-      <td>25.0</td>
-      <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-    </tr>
-    <tr>
-      <th>20210812 - Thu</th>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>12.0</td>
-      <td>12.0</td>
-      <td>13.0</td>
-      <td>...</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>NaN</td>
-      <td>34.0</td>
-      <td>29.0</td>
-      <td>11.0</td>
-      <td>11.0</td>
-      <td>11.0</td>
-      <td>11.0</td>
-    </tr>
-    <tr>
-      <th>20210813 - Fri</th>
-      <td>1.0</td>
-      <td>1.0</td>
-      <td>9.0</td>
-      <td>9.0</td>
-      <td>11.0</td>
-      <td>13.0</td>
-      <td>14.0</td>
-      <td>16.0</td>
-      <td>16.0</td>
-      <td>10.0</td>
-      <td>...</td>
-      <td>33.0</td>
-      <td>34.0</td>
-      <td>37.0</td>
-      <td>30.0</td>
-      <td>30.0</td>
-      <td>28.0</td>
-      <td>24.0</td>
-      <td>22.0</td>
-      <td>18.0</td>
-      <td>16.0</td>
-    </tr>
-    <tr>
-      <th>20210814 - Sat</th>
-      <td>1.0</td>
-      <td>7.0</td>
-      <td>9.0</td>
-      <td>10.0</td>
-      <td>11.0</td>
-      <td>13.0</td>
-      <td>14.0</td>
-      <td>20.0</td>
-      <td>20.0</td>
-      <td>23.0</td>
-      <td>...</td>
-      <td>9.0</td>
-      <td>6.0</td>
-      <td>7.0</td>
+      <th>Fri</th>
+      <td>2.00</td>
       <td>8.0</td>
-      <td>9.0</td>
-      <td>9.0</td>
-      <td>8.0</td>
-      <td>6.0</td>
-      <td>2.0</td>
-      <td>2.0</td>
+      <td>20.80</td>
+      <td>23.20</td>
+      <td>24.80</td>
+      <td>26.8</td>
+      <td>28.80</td>
+      <td>29.60</td>
+      <td>30.0</td>
+      <td>28.20</td>
+      <td>...</td>
+      <td>34.600000</td>
+      <td>33.80</td>
+      <td>36.00</td>
+      <td>33.80</td>
+      <td>31.40</td>
+      <td>26.80</td>
+      <td>24.8</td>
+      <td>22.60</td>
+      <td>21.0</td>
+      <td>14.20</td>
     </tr>
     <tr>
-      <th>20210815 - Sun</th>
-      <td>0.0</td>
-      <td>1.0</td>
-      <td>2.0</td>
-      <td>4.0</td>
-      <td>6.0</td>
-      <td>11.0</td>
-      <td>13.0</td>
-      <td>16.0</td>
-      <td>16.0</td>
-      <td>16.0</td>
-      <td>...</td>
-      <td>16.0</td>
-      <td>18.0</td>
-      <td>21.0</td>
-      <td>24.0</td>
-      <td>22.0</td>
+      <th>Mon</th>
+      <td>1.40</td>
+      <td>8.6</td>
+      <td>14.20</td>
+      <td>17.20</td>
+      <td>17.80</td>
       <td>20.0</td>
-      <td>19.0</td>
-      <td>19.0</td>
-      <td>11.0</td>
-      <td>12.0</td>
+      <td>20.40</td>
+      <td>18.20</td>
+      <td>17.0</td>
+      <td>17.00</td>
+      <td>...</td>
+      <td>41.000000</td>
+      <td>39.25</td>
+      <td>37.75</td>
+      <td>35.50</td>
+      <td>30.50</td>
+      <td>30.75</td>
+      <td>29.0</td>
+      <td>27.40</td>
+      <td>23.2</td>
+      <td>19.00</td>
     </tr>
     <tr>
-      <th>20210816 - Mon</th>
-      <td>0.0</td>
-      <td>6.0</td>
-      <td>11.0</td>
-      <td>16.0</td>
-      <td>18.0</td>
-      <td>17.0</td>
-      <td>17.0</td>
-      <td>18.0</td>
-      <td>18.0</td>
-      <td>17.0</td>
-      <td>...</td>
-      <td>38.0</td>
-      <td>41.0</td>
-      <td>39.0</td>
-      <td>39.0</td>
-      <td>37.0</td>
-      <td>36.0</td>
-      <td>34.0</td>
-      <td>33.0</td>
-      <td>25.0</td>
-      <td>30.0</td>
-    </tr>
-    <tr>
-      <th>20210817 - Tue</th>
-      <td>0.0</td>
-      <td>7.0</td>
-      <td>12.0</td>
-      <td>25.0</td>
-      <td>31.0</td>
-      <td>36.0</td>
-      <td>39.0</td>
-      <td>46.0</td>
-      <td>45.0</td>
-      <td>49.0</td>
-      <td>...</td>
-      <td>57.0</td>
-      <td>51.0</td>
-      <td>46.0</td>
-      <td>44.0</td>
-      <td>42.0</td>
-      <td>35.0</td>
-      <td>31.0</td>
-      <td>22.0</td>
-      <td>19.0</td>
-      <td>19.0</td>
-    </tr>
-    <tr>
-      <th>20210818 - Wed</th>
-      <td>19.0</td>
-      <td>0.0</td>
-      <td>6.0</td>
-      <td>9.0</td>
-      <td>11.0</td>
-      <td>15.0</td>
-      <td>17.0</td>
-      <td>19.0</td>
-      <td>19.0</td>
-      <td>16.0</td>
-      <td>...</td>
-      <td>NaN</td>
-      <td>49.0</td>
-      <td>50.0</td>
-      <td>47.0</td>
-      <td>43.0</td>
-      <td>38.0</td>
-      <td>36.0</td>
-      <td>35.0</td>
-      <td>30.0</td>
-      <td>24.0</td>
-    </tr>
-    <tr>
-      <th>20210819 - Thu</th>
-      <td>1.0</td>
-      <td>10.0</td>
-      <td>11.0</td>
-      <td>14.0</td>
-      <td>16.0</td>
-      <td>18.0</td>
-      <td>17.0</td>
-      <td>18.0</td>
-      <td>16.0</td>
-      <td>15.0</td>
-      <td>...</td>
-      <td>37.0</td>
-      <td>30.0</td>
-      <td>27.0</td>
-      <td>24.0</td>
-      <td>22.0</td>
-      <td>22.0</td>
+      <th>Sat</th>
+      <td>2.60</td>
+      <td>7.6</td>
+      <td>13.80</td>
+      <td>16.00</td>
+      <td>18.40</td>
       <td>21.0</td>
-      <td>19.0</td>
-      <td>12.0</td>
-      <td>12.0</td>
+      <td>22.80</td>
+      <td>24.40</td>
+      <td>25.2</td>
+      <td>24.60</td>
+      <td>...</td>
+      <td>15.200000</td>
+      <td>15.80</td>
+      <td>13.80</td>
+      <td>13.80</td>
+      <td>14.00</td>
+      <td>13.00</td>
+      <td>11.4</td>
+      <td>9.80</td>
+      <td>7.8</td>
+      <td>5.80</td>
     </tr>
     <tr>
-      <th>20210820 - Fri</th>
-      <td>0.0</td>
-      <td>1.0</td>
-      <td>5.0</td>
-      <td>15.0</td>
-      <td>15.0</td>
-      <td>16.0</td>
-      <td>18.0</td>
-      <td>18.0</td>
-      <td>19.0</td>
-      <td>22.0</td>
-      <td>...</td>
-      <td>49.0</td>
-      <td>51.0</td>
-      <td>51.0</td>
-      <td>41.0</td>
-      <td>36.0</td>
+      <th>Sun</th>
+      <td>3.00</td>
+      <td>6.5</td>
+      <td>11.50</td>
+      <td>16.75</td>
+      <td>21.25</td>
+      <td>26.5</td>
+      <td>28.50</td>
+      <td>30.75</td>
       <td>32.0</td>
-      <td>30.0</td>
-      <td>26.0</td>
-      <td>25.0</td>
-      <td>20.0</td>
-    </tr>
-    <tr>
-      <th>20210821 - Sat</th>
-      <td>0.0</td>
-      <td>8.0</td>
-      <td>16.0</td>
-      <td>17.0</td>
-      <td>17.0</td>
-      <td>16.0</td>
-      <td>20.0</td>
-      <td>20.0</td>
-      <td>16.0</td>
-      <td>16.0</td>
+      <td>35.25</td>
       <td>...</td>
-      <td>9.0</td>
-      <td>11.0</td>
-      <td>10.0</td>
-      <td>6.0</td>
-      <td>8.0</td>
-      <td>8.0</td>
-      <td>5.0</td>
-      <td>5.0</td>
-      <td>2.0</td>
-      <td>2.0</td>
-    </tr>
-    <tr>
-      <th>20210822 - Sun</th>
-      <td>0.0</td>
-      <td>2.0</td>
-      <td>8.0</td>
-      <td>11.0</td>
-      <td>17.0</td>
-      <td>22.0</td>
-      <td>23.0</td>
-      <td>30.0</td>
-      <td>29.0</td>
-      <td>33.0</td>
-      <td>...</td>
-      <td>22.0</td>
-      <td>19.0</td>
-      <td>21.0</td>
+      <td>21.800000</td>
+      <td>21.60</td>
+      <td>21.80</td>
+      <td>17.80</td>
+      <td>16.20</td>
+      <td>14.20</td>
       <td>13.0</td>
-      <td>12.0</td>
-      <td>12.0</td>
-      <td>12.0</td>
-      <td>8.0</td>
-      <td>7.0</td>
-      <td>5.0</td>
+      <td>11.60</td>
+      <td>8.6</td>
+      <td>5.20</td>
     </tr>
     <tr>
-      <th>20210823 - Mon</th>
-      <td>1.0</td>
-      <td>6.0</td>
-      <td>6.0</td>
-      <td>6.0</td>
-      <td>6.0</td>
-      <td>5.0</td>
-      <td>7.0</td>
-      <td>4.0</td>
-      <td>4.0</td>
-      <td>11.0</td>
+      <th>Thu</th>
+      <td>0.25</td>
+      <td>5.5</td>
+      <td>9.75</td>
+      <td>11.25</td>
+      <td>12.50</td>
+      <td>13.5</td>
+      <td>13.75</td>
+      <td>13.40</td>
+      <td>12.2</td>
+      <td>11.60</td>
       <td>...</td>
-      <td>52.0</td>
-      <td>45.0</td>
-      <td>37.0</td>
-      <td>36.0</td>
-      <td>29.0</td>
-      <td>30.0</td>
-      <td>25.0</td>
-      <td>23.0</td>
-      <td>21.0</td>
-      <td>21.0</td>
+      <td>32.333333</td>
+      <td>35.75</td>
+      <td>35.50</td>
+      <td>32.00</td>
+      <td>29.00</td>
+      <td>23.60</td>
+      <td>19.4</td>
+      <td>17.60</td>
+      <td>15.2</td>
+      <td>14.00</td>
     </tr>
     <tr>
-      <th>20210824 - Tue</th>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>7.0</td>
-      <td>11.0</td>
-      <td>14.0</td>
-      <td>15.0</td>
-      <td>18.0</td>
-      <td>18.0</td>
-      <td>19.0</td>
-      <td>17.0</td>
+      <th>Tue</th>
+      <td>6.20</td>
+      <td>9.2</td>
+      <td>14.40</td>
+      <td>20.00</td>
+      <td>25.00</td>
+      <td>27.6</td>
+      <td>31.40</td>
+      <td>33.00</td>
+      <td>32.8</td>
+      <td>31.00</td>
       <td>...</td>
-      <td>28.0</td>
-      <td>31.0</td>
-      <td>33.0</td>
-      <td>32.0</td>
-      <td>26.0</td>
-      <td>25.0</td>
-      <td>22.0</td>
-      <td>21.0</td>
-      <td>15.0</td>
-      <td>14.0</td>
+      <td>48.500000</td>
+      <td>46.50</td>
+      <td>44.25</td>
+      <td>42.20</td>
+      <td>37.80</td>
+      <td>33.20</td>
+      <td>30.2</td>
+      <td>25.80</td>
+      <td>16.2</td>
+      <td>15.40</td>
     </tr>
     <tr>
-      <th>20210825 - Wed</th>
-      <td>0.0</td>
-      <td>0.0</td>
-      <td>2.0</td>
-      <td>5.0</td>
-      <td>7.0</td>
-      <td>8.0</td>
-      <td>7.0</td>
-      <td>7.0</td>
-      <td>6.0</td>
-      <td>10.0</td>
-      <td>...</td>
-      <td>53.0</td>
-      <td>53.0</td>
-      <td>57.0</td>
-      <td>57.0</td>
-      <td>47.0</td>
-      <td>39.0</td>
-      <td>35.0</td>
-      <td>35.0</td>
-      <td>29.0</td>
-      <td>22.0</td>
-    </tr>
-    <tr>
-      <th>20210826 - Thu</th>
-      <td>0.0</td>
-      <td>5.0</td>
-      <td>13.0</td>
-      <td>14.0</td>
-      <td>17.0</td>
-      <td>18.0</td>
-      <td>18.0</td>
-      <td>18.0</td>
-      <td>16.0</td>
-      <td>13.0</td>
-      <td>...</td>
-      <td>32.0</td>
-      <td>29.0</td>
-      <td>24.0</td>
-      <td>23.0</td>
-      <td>17.0</td>
-      <td>12.0</td>
-      <td>10.0</td>
-      <td>8.0</td>
-      <td>6.0</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>20210827 - Fri</th>
-      <td>8.0</td>
-      <td>9.0</td>
-      <td>14.0</td>
-      <td>16.0</td>
-      <td>24.0</td>
-      <td>27.0</td>
-      <td>29.0</td>
-      <td>32.0</td>
-      <td>31.0</td>
-      <td>27.0</td>
-      <td>...</td>
-      <td>37.0</td>
-      <td>39.0</td>
-      <td>39.0</td>
-      <td>39.0</td>
-      <td>33.0</td>
-      <td>21.0</td>
-      <td>20.0</td>
-      <td>20.0</td>
-      <td>18.0</td>
-      <td>16.0</td>
-    </tr>
-    <tr>
-      <th>20210828 - Sat</th>
-      <td>0.0</td>
-      <td>2.0</td>
-      <td>8.0</td>
-      <td>13.0</td>
-      <td>17.0</td>
-      <td>19.0</td>
-      <td>19.0</td>
-      <td>18.0</td>
-      <td>17.0</td>
-      <td>12.0</td>
-      <td>...</td>
-      <td>25.0</td>
-      <td>29.0</td>
-      <td>27.0</td>
-      <td>24.0</td>
-      <td>24.0</td>
-      <td>24.0</td>
-      <td>22.0</td>
-      <td>22.0</td>
-      <td>22.0</td>
-      <td>12.0</td>
-    </tr>
-    <tr>
-      <th>20210829 - Sun</th>
-      <td>2.0</td>
-      <td>11.0</td>
-      <td>19.0</td>
-      <td>32.0</td>
-      <td>34.0</td>
-      <td>42.0</td>
-      <td>44.0</td>
-      <td>41.0</td>
-      <td>41.0</td>
-      <td>47.0</td>
-      <td>...</td>
-      <td>19.0</td>
-      <td>17.0</td>
-      <td>15.0</td>
-      <td>14.0</td>
-      <td>14.0</td>
-      <td>14.0</td>
-      <td>12.0</td>
-      <td>9.0</td>
-      <td>5.0</td>
-      <td>5.0</td>
-    </tr>
-    <tr>
-      <th>20210830 - Mon</th>
-      <td>1.0</td>
-      <td>13.0</td>
-      <td>28.0</td>
-      <td>32.0</td>
-      <td>32.0</td>
-      <td>38.0</td>
-      <td>38.0</td>
-      <td>29.0</td>
-      <td>21.0</td>
-      <td>14.0</td>
-      <td>...</td>
-      <td>43.0</td>
-      <td>40.0</td>
-      <td>41.0</td>
-      <td>31.0</td>
-      <td>29.0</td>
-      <td>30.0</td>
-      <td>28.0</td>
-      <td>24.0</td>
-      <td>23.0</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>20210831 - Tue</th>
-      <td>0.0</td>
-      <td>1.0</td>
-      <td>8.0</td>
-      <td>9.0</td>
-      <td>12.0</td>
-      <td>15.0</td>
-      <td>17.0</td>
-      <td>19.0</td>
-      <td>20.0</td>
-      <td>17.0</td>
-      <td>...</td>
-      <td>55.0</td>
-      <td>56.0</td>
-      <td>53.0</td>
-      <td>49.0</td>
-      <td>39.0</td>
-      <td>30.0</td>
-      <td>29.0</td>
-      <td>23.0</td>
-      <td>22.0</td>
-      <td>22.0</td>
-    </tr>
-    <tr>
-      <th>20210901 - Wed</th>
-      <td>0.0</td>
-      <td>5.0</td>
-      <td>9.0</td>
-      <td>16.0</td>
-      <td>22.0</td>
-      <td>23.0</td>
-      <td>24.0</td>
-      <td>23.0</td>
-      <td>24.0</td>
-      <td>24.0</td>
-      <td>...</td>
-      <td>51.0</td>
-      <td>48.0</td>
-      <td>46.0</td>
-      <td>45.0</td>
-      <td>40.0</td>
-      <td>40.0</td>
-      <td>28.0</td>
-      <td>23.0</td>
-      <td>15.0</td>
-      <td>0.0</td>
-    </tr>
-    <tr>
-      <th>20210902 - Thu</th>
-      <td>0.0</td>
+      <th>Wed</th>
+      <td>8.20</td>
       <td>3.0</td>
-      <td>8.0</td>
-      <td>9.0</td>
-      <td>9.0</td>
-      <td>11.0</td>
-      <td>11.0</td>
-      <td>11.0</td>
-      <td>9.0</td>
-      <td>9.0</td>
+      <td>7.40</td>
+      <td>10.60</td>
+      <td>13.40</td>
+      <td>15.8</td>
+      <td>17.40</td>
+      <td>17.40</td>
+      <td>17.2</td>
+      <td>18.60</td>
       <td>...</td>
-      <td>NaN</td>
-      <td>57.0</td>
-      <td>53.0</td>
-      <td>44.0</td>
-      <td>38.0</td>
-      <td>34.0</td>
-      <td>34.0</td>
-      <td>34.0</td>
-      <td>31.0</td>
-      <td>31.0</td>
-    </tr>
-    <tr>
-      <th>20210903 - Fri</th>
-      <td>0.0</td>
-      <td>28.0</td>
-      <td>28.0</td>
-      <td>27.0</td>
-      <td>28.0</td>
-      <td>29.0</td>
-      <td>30.0</td>
-      <td>31.0</td>
-      <td>31.0</td>
-      <td>30.0</td>
-      <td>...</td>
-      <td>23.0</td>
-      <td>19.0</td>
-      <td>24.0</td>
+      <td>52.666667</td>
+      <td>49.75</td>
+      <td>51.00</td>
+      <td>49.25</td>
+      <td>44.25</td>
+      <td>39.75</td>
+      <td>32.5</td>
+      <td>30.75</td>
       <td>26.0</td>
-      <td>24.0</td>
-      <td>21.0</td>
-      <td>20.0</td>
-      <td>19.0</td>
-      <td>19.0</td>
-      <td>19.0</td>
-    </tr>
-    <tr>
-      <th>20210904 - Sat</th>
-      <td>1.0</td>
-      <td>8.0</td>
-      <td>20.0</td>
-      <td>21.0</td>
-      <td>23.0</td>
-      <td>32.0</td>
-      <td>36.0</td>
-      <td>38.0</td>
-      <td>47.0</td>
-      <td>46.0</td>
-      <td>...</td>
-      <td>8.0</td>
-      <td>7.0</td>
-      <td>7.0</td>
-      <td>13.0</td>
-      <td>14.0</td>
-      <td>13.0</td>
-      <td>13.0</td>
-      <td>10.0</td>
-      <td>8.0</td>
-      <td>8.0</td>
-    </tr>
-    <tr>
-      <th>20210905 - Sun</th>
-      <td>10.0</td>
-      <td>12.0</td>
-      <td>17.0</td>
-      <td>20.0</td>
-      <td>28.0</td>
-      <td>31.0</td>
-      <td>34.0</td>
-      <td>36.0</td>
-      <td>42.0</td>
-      <td>45.0</td>
-      <td>...</td>
-      <td>25.0</td>
-      <td>26.0</td>
-      <td>25.0</td>
-      <td>24.0</td>
-      <td>19.0</td>
-      <td>15.0</td>
-      <td>13.0</td>
-      <td>13.0</td>
-      <td>11.0</td>
-      <td>4.0</td>
-    </tr>
-    <tr>
-      <th>20210906 - Mon</th>
-      <td>0.0</td>
-      <td>7.0</td>
-      <td>11.0</td>
-      <td>13.0</td>
-      <td>14.0</td>
-      <td>NaN</td>
-      <td>17.0</td>
-      <td>16.0</td>
-      <td>14.0</td>
-      <td>13.0</td>
-      <td>...</td>
-      <td>31.0</td>
-      <td>31.0</td>
-      <td>34.0</td>
-      <td>36.0</td>
-      <td>27.0</td>
-      <td>27.0</td>
-      <td>29.0</td>
-      <td>29.0</td>
-      <td>23.0</td>
-      <td>22.0</td>
+      <td>17.25</td>
     </tr>
   </tbody>
 </table>
-<p>30 rows × 49 columns</p>
+<p>7 rows × 49 columns</p>
 </div>
 
 
 
-Due to missing error handling and testing some data is missing (`NaN`). We just fill the missing data with the maximum capacity for now. Most of the missing data comes from errors in the scraper code. The code failed when the visitor capacity was at maximum and some expected `int` values were `-` strings.
+One last step is to adjust the order of the rows to represent a week:
 
 
 ```python
-df_pivot.loc[:] =  np.nan_to_num(df_pivot, nan=60)
+sorter = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+df_pivot = df_pivot.loc[sorter]
 ```
 
-Now we can plot the heatmap:
-
 
 ```python
-fig = plt.figure(figsize=(25,20))
+fig = plt.figure(figsize=(25,15))
 sns.set(font_scale=2)
-heatmap = sns.heatmap(df_pivot, cmap=sns.color_palette("RdYlGn_r"), cbar_kws={'label': 'visitors'})
+heatmap = sns.heatmap(df_pivot, cmap=sns.color_palette("RdYlGn_r"), cbar_kws={'label': 'visitors'}, vmin=0, vmax=60)
 heatmap.set_xticklabels(heatmap.get_xticklabels(), rotation=69) 
 plt.xlabel('Time of day')
 plt.ylabel('Day')
-plt.title('Climbing gym visitors per day')
+plt.title('Average climbing gym visitors per day')
 plt.show()
-
 ```
 
 
     
-![png](output_28_0.png)
+![png](output_36_0.png)
     
 
-
-
-```python
-
-```
